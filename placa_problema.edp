@@ -10,7 +10,7 @@ real x1 = W - gap;
 real y0 = gap;
 real y1 = H - gap;
 
-// Definición de las dos aperturas en el costado izquierdo
+// -- Se definen las aberturas tanto del lado izquierdo como derecho --
 real lenSpecial = H / 5.0;
 real centerSpecial1 = 0.65 * H;
 real centerSpecial2 = 0.35 * H;
@@ -21,7 +21,6 @@ real yEnd1   = centerSpecial1 + lenSpecial / 2.0;
 real yStart2 = centerSpecial2 - lenSpecial / 2.0;
 real yEnd2   = centerSpecial2 + lenSpecial / 2.0;
 
-// Definición de las dos salidas en el costado derecho
 real lenOut = H / 5.0;
 real centerOut1 = 0.65 * H;
 real centerOut2 = 0.35 * H;
@@ -33,37 +32,32 @@ real yStartOut2 = centerOut2 - lenOut / 2.0;
 real yEndOut2   = centerOut2 + lenOut / 2.0;
 
 
-// =====================
-// Bordes exterior (tubería)
-// =====================
+// -- Perimetro exterior de la tuberia
+
 border Obottom(t=0,1){ x = t*W; y = 0; label = 2; }
 border Otop(t=0,1)   { x = W - t*W; y = H; label = 4; }
 
-// Bordes izquierdos con aperturas
+// -- Bordes izquierdos con aperturas
 border OleftTop(t=0,1)     { x = 0; y = H - t*(H - yEnd1); label = 3; }
 border OleftInlet1(t=0,1)  { x = 0; y = yEnd1 - t*(yEnd1 - yStart1); label = 10; }
 border OleftMid(t=0,1)     { x = 0; y = yStart1 - t*(yStart1 - yEnd2); label = 3; }
 border OleftInlet2(t=0,1)  { x = 0; y = yEnd2 - t*(yEnd2 - yStart2); label = 11; }
 border OleftBottom(t=0,1)  { x = 0; y = yStart2 - t*(yStart2 - 0); label = 3; }
 
-// Bordes derechos con salidas
+// -- Bordes derechos con salidas
 border OrightBottom(t=0,1)  { x = W; y = 0 + t*(yStartOut2 - 0); label = 3; }
 border OrightOutlet2(t=0,1) { x = W; y = yStartOut2 + t*(yEndOut2 - yStartOut2); label = 21; }
 border OrightMid(t=0,1)     { x = W; y = yEndOut2 + t*(yStartOut1 - yEndOut2); label = 3; }
 border OrightOutlet1(t=0,1) { x = W; y = yStartOut1 + t*(yEndOut1 - yStartOut1); label = 20; }
 border OrightTop(t=0,1)     { x = W; y = yEndOut1 + t*(H - yEndOut1); label = 3; }
 
-// =====================
-// Bordes interior (tablero)
-// =====================
+// Bordes interior placa
 border Ibottom(t=0,1){ x = x0 + t*(x1 - x0); y = y0; label = 1; }
 border Iright(t=0,1) { x = x1; y = y0 + t*(y1 - y0); label = 1; }
 border Itop(t=0,1)   { x = x1 - t*(x1 - x0); y = y1; label = 1; }
 border Ileft(t=0,1)  { x = x0; y = y1 - t*(y1 - y0); label = 1; }
 
-// =====================
 // Mallas
-// =====================
 int nSegPerEdgeInner = 60;
 mesh meshInner = buildmesh(Ibottom(nSegPerEdgeInner) + Iright(nSegPerEdgeInner)
                           + Itop(nSegPerEdgeInner) + Ileft(nSegPerEdgeInner));
@@ -111,10 +105,7 @@ plot(meshFrame, wait=true);
 mesh meshCombined = meshFrame + meshInner;
 plot(meshCombined, wait=true);
 
-// =====================
-// Espacios finitos
-// =====================
-// Velocidad y presión se quedan en meshFrame
+// --  Velocidad y presión se quedan en meshFrame
 fespace Vh(meshFrame, P2); // velocidad
 fespace Qh(meshFrame, P1); // presion
 
@@ -123,9 +114,7 @@ VhCombined u1Combined, u2Combined;
 
 fespace Th(meshCombined, P1); // temperatura (ambas, pero activadas con chiFrame/chiInner)
 
-// =====================
-// Variables
-// =====================
+
 Vh u1, u2, v1, v2;
 Qh p, q;
 Vh u1old, u2old;
@@ -135,22 +124,18 @@ Th Ti, TiOld, psi;   // temperatura interior (igual, definido en meshCombined)
 
 Th Tcombined; // campo combinado para visualización
 
-// =====================
-// Parametros fisicos y numericos
-// =====================
-real dt = 0.1; // 0.01
-int nSteps = 200;
+// -- parametros 
+real dt = 0.5; 
+int nSteps = 250;
 
 real Re = 100.0;
-int nPicard = 5;
+int nPicard = 6;
 real picardRelax = 1.0;
 
 real Uin = 1.0;
 real Tin = 1.0;
 
-// =====================
-// Inicializaciones
-// =====================
+// Valores iniciales 
 u1old = 0.0; u2old = 0.0;
 TfOld = 0.0;
 TiOld = .3;
@@ -159,11 +144,9 @@ TiOld = .3;
 func chiInner = ((x > x0) && (x < x1) && (y > y0) && (y < y1)) ? 1.0 : 0.0;
 func chiFrame = 1.0 - chiInner;
 
-real alpha = 10.0;
+real alpha = 5.0;
 
-// =====================
-// Bucle temporal
-// =====================
+// Bucle temporal de evaluación 
 for (int it = 0; it < nSteps; it++) {
 
     // --- Navier-Stokes (fluido) sobre meshFrame ---
@@ -218,24 +201,15 @@ for (int it = 0; it < nSteps; it++) {
     Tcombined = chiFrame * Tf + chiInner * Ti;
 
     // --- Interpolar velocidad en meshCombined para graficar (solo visual) ---
-    // Creamos u1Combined,u2Combined en VhCombined (definido arriba) y usamos asignación
-
-    // FreeFem interpola automáticamente una función de una malla a otra al hacer una
-    // simple asignación entre espacios finitos diferentes.
     u1Combined = u1;
     u2Combined = u2;
 
-    //plot([u1Combined, u2Combined],
-    //    cmm = "Velocidad t = " + it, value = true, wait = false);
-    //plot(p, value=true, wait=false, fill=true);
-    // --- Temperatura combinada (visual) ---
     plot(meshCombined, Tcombined, value = true, fill = true,
         cmm = "Temperatura t = " + it, wait = false);
 }
 
-// =====================
-// Plots finales =)
-// =====================
+// Graficas finales
+
 plot(meshFrame, u1, u2, wait = true,
      cmm = "velocidad exterior final vector");
 
